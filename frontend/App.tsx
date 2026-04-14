@@ -15,7 +15,6 @@ export default function App() {
     exportMapping,
     activeEditor,
     isDesktopRuntime,
-    statusMessage,
     refreshEditorContext,
   } = useAppStore();
 
@@ -52,78 +51,63 @@ export default function App() {
       : text.editorUnsupportedHint;
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 p-3">
-      <div className="max-w-xl mx-auto space-y-3">
-        <header className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-sm font-bold tracking-tight">PrivateDocSend</h1>
-              <p className="text-[11px] text-slate-500">{text.appTagline}</p>
-            </div>
+    <div className="app-root">
+      <main className="app-shell">
+        <header className="glass-card app-header">
+          <div className="brand">
+            <h1>PrivateDocSend</h1>
+            <p>{text.appTagline}</p>
+          </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
-                className="px-2 py-1 text-[11px] border border-slate-200 rounded-md bg-white text-slate-600 hover:bg-slate-50"
-                title="Language"
-              >
-                {language === "zh" ? "ZH/EN" : "EN/ZH"}
-              </button>
+          <div className="header-tools">
+            <button
+              type="button"
+              onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
+              className="lang-button"
+              title="Language"
+            >
+              {language === "zh" ? "ZH / EN" : "EN / ZH"}
+            </button>
 
-              <div className="flex rounded-md border border-slate-200 overflow-hidden text-xs">
+            <div className="segment" role="tablist" aria-label="mode switch">
               <button
                 type="button"
                 onClick={() => setMode("anonymize")}
-                className={`px-3 py-1.5 font-semibold ${
-                  mode === "anonymize"
-                    ? "bg-sky-600 text-white"
-                    : "bg-white text-slate-600 hover:bg-slate-50"
-                }`}
+                className={mode === "anonymize" ? "active" : ""}
               >
                 {text.tabAnonymize}
               </button>
               <button
                 type="button"
                 onClick={() => setMode("restore")}
-                className={`px-3 py-1.5 font-semibold border-l border-slate-200 ${
-                  mode === "restore"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-white text-slate-600 hover:bg-slate-50"
-                }`}
+                className={mode === "restore" ? "active" : ""}
               >
                 {text.tabRestore}
               </button>
-              </div>
             </div>
           </div>
         </header>
 
-        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <p className="text-[11px] text-slate-500 mb-1">{text.activeEditor}</p>
-          <p
-            className={`text-xs font-medium truncate ${
-              activeEditor?.supported ? "text-emerald-700" : "text-amber-700"
-            }`}
-            title={editorLabel}
-          >
+        <section className="glass-card editor-card">
+          <div className="meta-label">{text.activeEditor}</div>
+          <p className={`editor-title ${activeEditor?.supported ? "" : "unsupported"}`}>
             {editorLabel}
           </p>
-          <p className="text-[11px] text-slate-400 mt-1">{editorHint}</p>
+          <p className="editor-hint">{editorHint}</p>
         </section>
 
         {mode === "anonymize" && (
           <>
             <ReplacePanel />
             <MappingList />
-            <section className="border border-slate-200 rounded-lg bg-white p-4">
+            <section className="glass-card panel">
               <button
                 type="button"
                 onClick={() => {
                   void exportMapping();
                 }}
                 disabled={mapping.length === 0 || isBusy}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn btn-secondary"
               >
                 {text.exportMapping}
               </button>
@@ -137,11 +121,7 @@ export default function App() {
             <RestorePanel />
           </>
         )}
-
-        <section className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-600">{statusMessage}</p>
-        </section>
-      </div>
+      </main>
     </div>
   );
 }

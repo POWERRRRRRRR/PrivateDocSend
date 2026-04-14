@@ -11,15 +11,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Python
-.venv/
-venv/
-__pycache__/
-**/__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-
 # Node / Frontend
 node_modules/
 dist/
@@ -28,6 +19,16 @@ frontend/dist/
 
 # Tauri / Rust
 src-tauri/target/
+src-tauri/*.pdb
+
+# Local release artifacts
+release/
+*.msi
+*.deb
+*.rpm
+*.dmg
+*.app.tar.gz
+*.AppImage
 
 # Test / temp artifacts
 tests/
@@ -35,5 +36,6 @@ mapping*.json
 anonymized*
 restored*
 sample_output*
+Gemini_Generated_Image_*.png
 tmp/
 temp/

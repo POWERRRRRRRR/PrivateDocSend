@@ -9,6 +9,7 @@ export default function RestorePanel() {
     restoreAllMappings,
     setStatusMessage,
     language,
+    statusMessage,
   } = useAppStore();
   const text = getUiText(language);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,11 +33,11 @@ export default function RestorePanel() {
   };
 
   return (
-    <section className="border border-slate-200 rounded-lg bg-white p-4 space-y-3">
+    <section className="glass-card panel actions">
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        className="btn btn-secondary"
       >
         {text.importMapping}
       </button>
@@ -54,10 +55,14 @@ export default function RestorePanel() {
         onClick={() => {
           void restoreAllMappings();
         }}
-        className="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn btn-success"
       >
         {isBusy ? text.working : text.restoreAll}
       </button>
+
+      <div className="status-inline" role="status" aria-live="polite">
+        {statusMessage}
+      </div>
     </section>
   );
 }

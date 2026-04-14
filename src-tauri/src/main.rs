@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod active_window;
 mod clipboard_bridge;
 mod editor_automation;
@@ -22,7 +24,6 @@ fn restore_all_in_active_editor(
     editor_automation::restore_all_in_active_editor(mapping)
 }
 
-#[cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 fn main() {
     tauri::Builder::default()
         .setup(|_| {

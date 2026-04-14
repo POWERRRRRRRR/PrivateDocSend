@@ -1,7 +1,7 @@
 {
   "productName": "PrivateDocSend",
   "version": "0.1.0",
-  "identifier": "com.privatedocsend.app",
+  "identifier": "com.privatedocsend.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

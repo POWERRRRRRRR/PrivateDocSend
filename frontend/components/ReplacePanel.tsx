@@ -18,6 +18,7 @@ export default function ReplacePanel() {
     stablePlaceholders,
     isBusy,
     language,
+    statusMessage,
     setFindText,
     setEntityType,
     setCustomTypeInput,
@@ -26,25 +27,16 @@ export default function ReplacePanel() {
   } = useAppStore();
 
   const placeholderPreview = useMemo(
-    () =>
-      previewPlaceholder(
-        findText,
-        entityType,
-        mapping,
-        typeCounters,
-        stablePlaceholders
-      ),
+    () => previewPlaceholder(findText, entityType, mapping, typeCounters, stablePlaceholders),
     [findText, entityType, mapping, typeCounters, stablePlaceholders]
   );
 
   const text = getUiText(language);
 
   return (
-    <section className="border border-slate-200 rounded-lg bg-white p-4 space-y-3">
-      <div className="space-y-1">
-        <label className="text-xs text-slate-500 font-semibold tracking-wide">
-          {text.findLabel}
-        </label>
+    <section className="glass-card panel">
+      <div className="field">
+        <label>{text.findLabel}</label>
         <input
           type="text"
           value={findText}
@@ -55,21 +47,19 @@ export default function ReplacePanel() {
             }
           }}
           placeholder={text.findPlaceholder}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-300"
+          className="input"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
         />
       </div>
 
-      <div className="space-y-1">
-        <label className="text-xs text-slate-500 font-semibold tracking-wide">
-          {text.entityTypeLabel}
-        </label>
+      <div className="field">
+        <label>{text.entityTypeLabel}</label>
         <select
           value={entityType}
           onChange={(event) => setEntityType(event.target.value)}
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-300"
+          className="select"
         >
           {[...ENTITY_TYPES, ...Object.keys(customEntityTypes)].map((type) => (
             <option key={type} value={type}>
@@ -79,11 +69,9 @@ export default function ReplacePanel() {
         </select>
       </div>
 
-      <div className="space-y-1">
-        <label className="text-xs text-slate-500 font-semibold tracking-wide">
-          {text.customTypeInputLabel}
-        </label>
-        <div className="flex gap-2">
+      <div className="field">
+        <label>{text.customTypeInputLabel}</label>
+        <div className="input-row">
           <input
             type="text"
             value={customTypeInput}
@@ -94,7 +82,7 @@ export default function ReplacePanel() {
               }
             }}
             placeholder={text.customTypeInputPlaceholder}
-            className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-300"
+            className="input"
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
@@ -105,18 +93,16 @@ export default function ReplacePanel() {
               addCustomEntityType();
             }}
             disabled={isBusy || customTypeInput.trim().length === 0}
-            className="shrink-0 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="btn btn-secondary"
           >
             {text.addCustomType}
           </button>
         </div>
       </div>
 
-      <div className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-sm">
-        <span className="text-slate-500 mr-2">{text.previewPlaceholder}</span>
-        <span className="font-mono text-sky-700 font-semibold">
-          {placeholderPreview || "-"}
-        </span>
+      <div className="placeholder-preview">
+        {text.previewPlaceholder}
+        <span className="placeholder-token">{placeholderPreview || "-"}</span>
       </div>
 
       <button
@@ -125,10 +111,14 @@ export default function ReplacePanel() {
         onClick={() => {
           void replaceAllInEditor();
         }}
-        className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn btn-primary"
       >
         {isBusy ? text.working : text.replaceAll}
       </button>
+
+      <div className="status-inline" role="status" aria-live="polite">
+        {statusMessage}
+      </div>
     </section>
   );
 }
