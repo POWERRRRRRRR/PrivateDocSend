@@ -1,0 +1,25 @@
+{
+  "productName": "PrivateDocSend",
+  "version": "0.1.0",
+  "identifier": "com.privatedocsend.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PrivateDocSend",
+        "width": 520,
+        "height": 780,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8000; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    }
+  }
+}

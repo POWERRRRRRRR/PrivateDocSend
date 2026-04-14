@@ -1,0 +1,38 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Node / Frontend
+node_modules/
+dist/
+frontend/dist/
+.vite/
+
+# Tauri / Rust
+src-tauri/target/
+
+# Test / temp artifacts
+mapping*.json
+anonymized*
+restored*
+sample_output*
+tmp/
+temp/
