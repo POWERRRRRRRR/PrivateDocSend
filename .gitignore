@@ -30,6 +30,7 @@ frontend/dist/
 src-tauri/target/
 
 # Test / temp artifacts
+tests/
 mapping*.json
 anonymized*
 restored*
