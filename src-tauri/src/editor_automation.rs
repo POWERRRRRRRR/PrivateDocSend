@@ -38,6 +38,7 @@ pub fn replace_all_in_active_editor(
     let caller_hwnd = active_window::foreground_hwnd();
     let target = active_window::select_target_editor()?;
     let kind = active_window::editor_kind_from_window(&target);
+    ensure_shortcut_compatibility(kind)?;
     let clipboard_snapshot = clipboard_bridge::capture_clipboard();
 
     let result = (|| {
@@ -58,10 +59,7 @@ pub fn replace_all_in_active_editor(
 
     Ok(AutomationResponse {
         ok: true,
-        message: format!(
-            "Replace-all executed in '{}' window.",
-            target.title.trim()
-        ),
+        message: format!("Replace-all executed in '{}' window.", target.title.trim()),
         steps: 1,
         target: Some(target),
     })
@@ -83,13 +81,14 @@ pub fn restore_all_in_active_editor(
     let caller_hwnd = active_window::foreground_hwnd();
     let target = active_window::select_target_editor()?;
     let kind = active_window::editor_kind_from_window(&target);
+    ensure_shortcut_compatibility(kind)?;
     let clipboard_snapshot = clipboard_bridge::capture_clipboard();
 
     let result = (|| {
         active_window::focus_window(target.hwnd)?;
         let mut steps = 0usize;
         for entry in &mapping {
-            let _ = &entry.entity_type;
+            let _ = entry.entity_type.as_str();
             run_replace_cycle(kind, &entry.placeholder, &entry.original)?;
             steps += 1;
         }
@@ -119,9 +118,8 @@ fn run_replace_cycle(kind: EditorKind, find_text: &str, replace_text: &str) -> R
     wait_ms(80);
     fill_current_input(replace_text)?;
     trigger_replace_all(kind)?;
-    wait_ms(140);
-    press_key(VK_ESCAPE as u16)?;
-    wait_ms(80);
+    wait_ms(200);
+    finalize_replace_dialog(kind)?;
     Ok(())
 }
 
@@ -141,29 +139,63 @@ fn fill_current_input(value: &str) -> Result<(), String> {
 }
 
 fn trigger_replace_all(kind: EditorKind) -> Result<(), String> {
-    let wechat_running = is_wechat_running();
-
     match kind {
         EditorKind::VsCode => {
             send_combo(&[VK_CONTROL as u16, VK_MENU as u16], VK_RETURN as u16)?;
         }
-        EditorKind::Unknown => {
-            if !wechat_running {
-                send_combo(&[VK_MENU as u16], VK_A as u16)?;
-                wait_ms(80);
-            }
-            send_combo(&[VK_CONTROL as u16, VK_MENU as u16], VK_RETURN as u16)?;
-        }
-        _ => {
-            if wechat_running {
-                // Avoid WeChat global screenshot hotkey (Alt + A).
+        EditorKind::Typora => {
+            // Typora behavior varies across versions/themes: the same action may
+            // apply to only one match instead of all matches. Run multiple passes
+            // to emulate replace-all safely without touching document model.
+            const TYPORA_COMPAT_PASSES: usize = 80;
+            for _ in 0..TYPORA_COMPAT_PASSES {
                 send_combo(&[VK_CONTROL as u16, VK_MENU as u16], VK_RETURN as u16)?;
-            } else {
-                send_combo(&[VK_MENU as u16], VK_A as u16)?;
+                wait_ms(24);
             }
+        }
+        EditorKind::Word | EditorKind::Wps | EditorKind::NotepadPlusPlus => {
+            send_combo(&[VK_MENU as u16], VK_A as u16)?;
+        }
+        EditorKind::Unknown => {
+            send_combo(&[VK_MENU as u16], VK_A as u16)?;
+            wait_ms(80);
+            send_combo(&[VK_CONTROL as u16, VK_MENU as u16], VK_RETURN as u16)?;
         }
     }
     wait_ms(120);
+    Ok(())
+}
+
+fn finalize_replace_dialog(kind: EditorKind) -> Result<(), String> {
+    if matches!(
+        kind,
+        EditorKind::Word | EditorKind::Wps | EditorKind::NotepadPlusPlus
+    ) {
+        // Word/WPS may show replace summary dialog that needs confirmation.
+        press_key(VK_RETURN as u16)?;
+        wait_ms(80);
+    }
+
+    // Close remaining replace UI (single or double ESC depending on editor state).
+    press_key(VK_ESCAPE as u16)?;
+    wait_ms(70);
+    press_key(VK_ESCAPE as u16)?;
+    wait_ms(70);
+    Ok(())
+}
+
+fn ensure_shortcut_compatibility(kind: EditorKind) -> Result<(), String> {
+    if is_wechat_running()
+        && matches!(
+            kind,
+            EditorKind::Word | EditorKind::Wps | EditorKind::NotepadPlusPlus | EditorKind::Unknown
+        )
+    {
+        return Err(
+            "Detected WeChat screenshot shortcut conflict (Alt+A). Please disable WeChat screenshot hotkey or close WeChat, then retry.".to_string(),
+        );
+    }
+
     Ok(())
 }
 

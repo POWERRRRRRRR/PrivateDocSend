@@ -11,8 +11,9 @@ use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetForegroundWindow, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
-    IsIconic, IsWindow, IsWindowVisible, SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOW,
+    GetClassNameW, GetForegroundWindow, GetWindowTextLengthW, GetWindowTextW,
+    GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, SetForegroundWindow, ShowWindow,
+    SW_RESTORE, SW_SHOW,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,8 +84,7 @@ fn detect_editor_kind(title: &str, class_name: &str) -> EditorKind {
     if c == "notepad++" || t.contains("notepad++") {
         return EditorKind::NotepadPlusPlus;
     }
-    if t.contains("visual studio code") || t.contains(" - code") || t.contains(" - code-insiders")
-    {
+    if t.contains("visual studio code") || t.contains(" - code") || t.contains(" - code-insiders") {
         return EditorKind::VsCode;
     }
     if t.contains("typora") {
@@ -165,7 +165,9 @@ pub fn start_foreground_tracker() {
                 if info.hwnd != 0 {
                     let hwnd = info.hwnd as HWND;
                     if !is_own_process(hwnd) {
-                        let mut guard = LAST_EXTERNAL_WINDOW.lock().expect("window tracker poisoned");
+                        let mut guard = LAST_EXTERNAL_WINDOW
+                            .lock()
+                            .expect("window tracker poisoned");
                         *guard = Some(WindowInfo {
                             source: "last_seen".to_string(),
                             ..info

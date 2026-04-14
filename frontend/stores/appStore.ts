@@ -189,6 +189,21 @@ function mappingKey(original: string, entityType: string): string {
   return `${entityType}::${original}`;
 }
 
+const PLACEHOLDER_TOKEN_PATTERN = /^<[A-Z0-9_]+_\d{3}>$/;
+
+function findPlaceholderConflict(needle: string, mapping: MappingEntry[]): string | null {
+  const trimmed = needle.trim();
+  if (!trimmed) return null;
+  if (PLACEHOLDER_TOKEN_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  const conflict = mapping.find(
+    (entry) => entry.placeholder.includes(trimmed) || trimmed.includes(entry.placeholder)
+  );
+  return conflict?.placeholder ?? null;
+}
+
 function generatePlaceholder(type: string, count: number): string {
   return `<${type}_${String(count).padStart(3, "0")}>`;
 }
@@ -448,6 +463,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const needle = findText.trim();
     if (!needle) {
       set({ statusMessage: getUiText(get().language).findEmpty });
+      return false;
+    }
+
+    const placeholderConflict = findPlaceholderConflict(needle, mapping);
+    if (placeholderConflict) {
+      set({
+        statusMessage:
+          get().language === "zh"
+            ? `当前输入会误伤已有标记（${placeholderConflict}），请先恢复后再替换。`
+            : `This text conflicts with existing placeholder (${placeholderConflict}). Please restore first or choose exact original text.`,
+      });
       return false;
     }
 
