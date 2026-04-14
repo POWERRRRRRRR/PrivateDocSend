@@ -16,6 +16,7 @@ export interface MappingEntry {
   placeholder: string;
   original: string;
   entity_type: string;
+  entity_label?: string;
 }
 
 export const ENTITY_TYPES = [
@@ -27,6 +28,9 @@ export const ENTITY_TYPES = [
   "PHONE_NUMBER",
   "LOCATION",
 ] as const;
+
+const BUILTIN_ENTITY_TYPE_SET = new Set<string>(ENTITY_TYPES);
+const MAX_CUSTOM_TYPES = 50;
 
 export const ENTITY_TYPE_LABELS = {
   en: {
@@ -73,6 +77,9 @@ export const UI_TEXT = {
     findLabel: "Original text",
     findPlaceholder: "Type text you want to mask...",
     entityTypeLabel: "Info type",
+    customTypeInputLabel: "Custom type",
+    customTypeInputPlaceholder: "e.g. Contract Number, Case ID",
+    addCustomType: "Add type",
     previewPlaceholder: "Generated tag:",
     replaceAll: "Replace all in current editor",
     working: "Working...",
@@ -99,9 +106,11 @@ export const UI_TEXT = {
     restoreSingleFailed: "Single restore failed.",
     restoreAllFailed: "Restore all failed.",
     exportFailed: "Export failed.",
+    customTypeEmpty: "Please enter a custom type name.",
+    customTypeExists: (label: string) => `Type already exists: ${label}`,
+    customTypeAdded: (label: string) => `Added custom type: ${label}`,
+    customTypeLimit: "Too many custom types. Please keep up to 50.",
     importDone: (count: number) => `Imported ${count} mapping records.`,
-    editorConnected: "Connected to editor",
-    editorRuntimeLabel: "Desktop mode is required for automatic replacement.",
   },
   zh: {
     appTagline: "在文档里先替换敏感信息，之后随时一键恢复",
@@ -115,6 +124,9 @@ export const UI_TEXT = {
     findLabel: "原始文字",
     findPlaceholder: "输入你想替换的文字...",
     entityTypeLabel: "信息类别",
+    customTypeInputLabel: "自定义类别",
+    customTypeInputPlaceholder: "例如：合同编号、案号、车牌号",
+    addCustomType: "添加类别",
     previewPlaceholder: "将生成的标记：",
     replaceAll: "在当前编辑器替换全部",
     working: "处理中...",
@@ -141,9 +153,11 @@ export const UI_TEXT = {
     restoreSingleFailed: "单条恢复失败。",
     restoreAllFailed: "恢复全部失败。",
     exportFailed: "导出失败。",
+    customTypeEmpty: "请先输入自定义类别名称。",
+    customTypeExists: (label: string) => `类别已存在：${label}`,
+    customTypeAdded: (label: string) => `已添加自定义类别：${label}`,
+    customTypeLimit: "自定义类别过多，请控制在 50 个以内。",
     importDone: (count: number) => `已导入 ${count} 条映射记录。`,
-    editorConnected: "已连接编辑器",
-    editorRuntimeLabel: "自动替换功能仅桌面版可用。",
   },
 } as const;
 
@@ -151,9 +165,24 @@ export function getUiText(language: Language) {
   return UI_TEXT[language] ?? UI_TEXT.zh;
 }
 
-export function getEntityTypeLabel(type: string, language: Language) {
+function fallbackTypeLabel(type: string): string {
+  return type
+    .replace(/^CUSTOM_/, "")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+export function getEntityTypeLabel(
+  type: string,
+  language: Language,
+  customLabels: Record<string, string> = {}
+) {
+  if (customLabels[type]) {
+    return customLabels[type];
+  }
   const labels = ENTITY_TYPE_LABELS[language] ?? ENTITY_TYPE_LABELS.zh;
-  return labels[type as keyof typeof labels] ?? type;
+  return labels[type as keyof typeof labels] ?? fallbackTypeLabel(type);
 }
 
 function mappingKey(original: string, entityType: string): string {
@@ -168,6 +197,51 @@ function extractCounter(placeholder: string, entityType: string): number | null 
   const matched = placeholder.match(new RegExp(`^<${entityType}_(\\d{3})>$`));
   if (!matched) return null;
   return Number.parseInt(matched[1], 10);
+}
+
+function hashString(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).toUpperCase().padStart(8, "0");
+}
+
+function normalizeEntityTypeKey(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+
+  const ascii = trimmed
+    .normalize("NFKD")
+    .replace(/[^\x00-\x7F]/g, "_")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_{2,}/g, "_")
+    .toUpperCase();
+
+  let token = ascii;
+  if (!token) {
+    token = `CUSTOM_${hashString(trimmed).slice(0, 6)}`;
+  }
+  if (/^\d/.test(token)) {
+    token = `TYPE_${token}`;
+  }
+  if (token.length > 32) {
+    token = token.slice(0, 32).replace(/_+$/g, "");
+  }
+  if (!token) {
+    token = `CUSTOM_${hashString(trimmed).slice(0, 6)}`;
+  }
+  return token;
+}
+
+function normalizeImportedEntityType(input: string): string {
+  const upper = input.trim().toUpperCase();
+  if (BUILTIN_ENTITY_TYPE_SET.has(upper)) {
+    return upper;
+  }
+  return normalizeEntityTypeKey(input);
 }
 
 function deriveTypeCounters(entries: MappingEntry[]): Record<string, number> {
@@ -187,16 +261,18 @@ function normalizeImportedEntries(entries: MappingEntry[]): MappingEntry[] {
   for (const entry of entries) {
     const placeholder = entry.placeholder?.trim();
     const original = entry.original ?? "";
-    const entityType = entry.entity_type?.trim();
-    if (!placeholder || !entityType || !original) continue;
+    const entityTypeRaw = entry.entity_type?.trim();
+    if (!placeholder || !entityTypeRaw || !original) continue;
 
+    const normalizedType = normalizeImportedEntityType(entityTypeRaw);
     const normalized: MappingEntry = {
       placeholder,
       original,
-      entity_type: entityType.toUpperCase(),
+      entity_type: normalizedType,
+      entity_label: entry.entity_label?.trim() || undefined,
     };
-    const key = mappingKey(normalized.original, normalized.entity_type);
 
+    const key = mappingKey(normalized.original, normalized.entity_type);
     if (byPlaceholder.has(normalized.placeholder)) continue;
     if (byKey.has(key)) continue;
 
@@ -240,6 +316,8 @@ interface AppStore {
   language: Language;
   findText: string;
   entityType: string;
+  customTypeInput: string;
+  customEntityTypes: Record<string, string>;
   mapping: MappingEntry[];
   typeCounters: Record<string, number>;
   stablePlaceholders: Record<string, string>;
@@ -252,6 +330,8 @@ interface AppStore {
   setLanguage: (language: Language) => void;
   setFindText: (value: string) => void;
   setEntityType: (value: string) => void;
+  setCustomTypeInput: (value: string) => void;
+  addCustomEntityType: () => boolean;
   setStatusMessage: (value: string) => void;
   refreshEditorContext: () => Promise<void>;
   replaceAllInEditor: () => Promise<boolean>;
@@ -266,6 +346,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   language: "zh",
   findText: "",
   entityType: "PERSON",
+  customTypeInput: "",
+  customEntityTypes: {},
   mapping: [],
   typeCounters: {},
   stablePlaceholders: {},
@@ -279,7 +361,55 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ language, statusMessage: getUiText(language).statusReady }),
   setFindText: (value) => set({ findText: value }),
   setEntityType: (value) => set({ entityType: value }),
+  setCustomTypeInput: (value) => set({ customTypeInput: value }),
   setStatusMessage: (value) => set({ statusMessage: value }),
+
+  addCustomEntityType: () => {
+    const { customTypeInput, customEntityTypes, language } = get();
+    const text = getUiText(language);
+    const rawLabel = customTypeInput.trim();
+    if (!rawLabel) {
+      set({ statusMessage: text.customTypeEmpty });
+      return false;
+    }
+
+    if (Object.keys(customEntityTypes).length >= MAX_CUSTOM_TYPES) {
+      set({ statusMessage: text.customTypeLimit });
+      return false;
+    }
+
+    const key = normalizeEntityTypeKey(rawLabel);
+    if (!key) {
+      set({ statusMessage: text.customTypeEmpty });
+      return false;
+    }
+
+    if (BUILTIN_ENTITY_TYPE_SET.has(key)) {
+      set({
+        entityType: key,
+        customTypeInput: "",
+        statusMessage: text.customTypeExists(getEntityTypeLabel(key, language)),
+      });
+      return false;
+    }
+
+    if (customEntityTypes[key]) {
+      set({
+        entityType: key,
+        customTypeInput: "",
+        statusMessage: text.customTypeExists(customEntityTypes[key]),
+      });
+      return false;
+    }
+
+    set({
+      customEntityTypes: { ...customEntityTypes, [key]: rawLabel },
+      entityType: key,
+      customTypeInput: "",
+      statusMessage: text.customTypeAdded(rawLabel),
+    });
+    return true;
+  },
 
   refreshEditorContext: async () => {
     if (!hasTauriRuntime()) {
@@ -304,7 +434,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   replaceAllInEditor: async () => {
-    const { findText, entityType, mapping, typeCounters, stablePlaceholders, isBusy } = get();
+    const {
+      findText,
+      entityType,
+      customEntityTypes,
+      mapping,
+      typeCounters,
+      stablePlaceholders,
+      isBusy,
+    } = get();
     if (isBusy) return false;
 
     const needle = findText.trim();
@@ -354,7 +492,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
       nextMapping = [
         ...mapping,
-        { placeholder, original: needle, entity_type: entityType },
+        {
+          placeholder,
+          original: needle,
+          entity_type: entityType,
+          entity_label: customEntityTypes[entityType],
+        },
       ];
     }
 
@@ -445,15 +588,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const normalized = normalizeImportedEntries(entries);
     const counters = deriveTypeCounters(normalized);
     const text = getUiText(get().language);
+
     set((state) => {
       const stable = { ...state.stablePlaceholders };
+      const mergedCustomTypes = { ...state.customEntityTypes };
+
       for (const entry of normalized) {
         stable[mappingKey(entry.original, entry.entity_type)] = entry.placeholder;
+        if (!BUILTIN_ENTITY_TYPE_SET.has(entry.entity_type)) {
+          const label = entry.entity_label?.trim() || entry.entity_type;
+          if (!mergedCustomTypes[entry.entity_type]) {
+            mergedCustomTypes[entry.entity_type] = label;
+          }
+        }
       }
+
       return {
         mapping: normalized,
         typeCounters: counters,
         stablePlaceholders: stable,
+        customEntityTypes: mergedCustomTypes,
         statusMessage: text.importDone(normalized.length),
       };
     });

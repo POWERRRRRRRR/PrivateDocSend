@@ -9,6 +9,8 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_A, VK_CONTROL,
     VK_ESCAPE, VK_H, VK_MENU, VK_RETURN, VK_TAB, VK_V,
 };
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::UI::WindowsAndMessaging::FindWindowW;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MappingEntryInput {
@@ -139,21 +141,41 @@ fn fill_current_input(value: &str) -> Result<(), String> {
 }
 
 fn trigger_replace_all(kind: EditorKind) -> Result<(), String> {
+    let wechat_running = is_wechat_running();
+
     match kind {
         EditorKind::VsCode => {
             send_combo(&[VK_CONTROL as u16, VK_MENU as u16], VK_RETURN as u16)?;
         }
         EditorKind::Unknown => {
-            send_combo(&[VK_MENU as u16], VK_A as u16)?;
-            wait_ms(80);
+            if !wechat_running {
+                send_combo(&[VK_MENU as u16], VK_A as u16)?;
+                wait_ms(80);
+            }
             send_combo(&[VK_CONTROL as u16, VK_MENU as u16], VK_RETURN as u16)?;
         }
         _ => {
-            send_combo(&[VK_MENU as u16], VK_A as u16)?;
+            if wechat_running {
+                // Avoid WeChat global screenshot hotkey (Alt + A).
+                send_combo(&[VK_CONTROL as u16, VK_MENU as u16], VK_RETURN as u16)?;
+            } else {
+                send_combo(&[VK_MENU as u16], VK_A as u16)?;
+            }
         }
     }
     wait_ms(120);
     Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn is_wechat_running() -> bool {
+    let class_name: Vec<u16> = "WeChatMainWndForPC\0".encode_utf16().collect();
+    unsafe { FindWindowW(class_name.as_ptr(), std::ptr::null()) != std::ptr::null_mut() }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_wechat_running() -> bool {
+    false
 }
 
 fn wait_ms(ms: u64) {

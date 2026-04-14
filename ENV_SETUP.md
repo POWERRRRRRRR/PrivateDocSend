@@ -1,31 +1,32 @@
 # ENV_SETUP
 
-## 1) Python Backend (Conda only)
+## Runtime Policy
 
-Use your existing Conda environment:
+PrivateDocSend uses a single runtime path: **Tauri desktop app**.
 
-```bash
-conda activate presidio
-python -m uvicorn backend.main:app --reload --port 8000
-```
+- Do not start Python backend for normal usage.
+- Do not start FastAPI service for normal usage.
 
-Rules:
+## Prerequisites
 
-- Backend must run inside `presidio`.
-- Do not create or use `.venv` for this project.
-- Do not switch to `pipenv`, `poetry`, or `uv` workflows.
+1. Node.js (LTS)
+2. Rust toolchain (`rustup`, `cargo`, `rustc`)
+3. Visual Studio Build Tools on Windows (MSVC + Windows SDK)
 
-## 2) Frontend
+## Install
 
 ```bash
 npm install
-npm run dev
 ```
 
-## 3) Tauri (later)
-
-After installing Rust toolchain + Visual Studio Build Tools (MSVC + Windows SDK):
+## Development
 
 ```bash
 npm run tauri dev
+```
+
+## Frontend preview only (optional)
+
+```bash
+npm run dev
 ```

@@ -6,17 +6,25 @@ import {
   useAppStore,
 } from "../stores/appStore";
 
-function TypeBadge({ entityType, language }: { entityType: string; language: Language }) {
+function TypeBadge({
+  entityType,
+  language,
+  customEntityTypes,
+}: {
+  entityType: string;
+  language: Language;
+  customEntityTypes: Record<string, string>;
+}) {
   const colorClass = ENTITY_COLORS[entityType] ?? "bg-slate-100 text-slate-700";
   return (
     <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${colorClass}`}>
-      {getEntityTypeLabel(entityType, language)}
+      {getEntityTypeLabel(entityType, language, customEntityTypes)}
     </span>
   );
 }
 
 export default function MappingList() {
-  const { mapping, isBusy, restoreSingleMapping, language } = useAppStore();
+  const { mapping, isBusy, restoreSingleMapping, language, customEntityTypes } = useAppStore();
   const text = getUiText(language);
 
   return (
@@ -43,7 +51,11 @@ export default function MappingList() {
               <span className="font-mono text-slate-800 flex-1 min-w-0 truncate">
                 {entry.original}
               </span>
-              <TypeBadge entityType={entry.entity_type} language={language} />
+              <TypeBadge
+                entityType={entry.entity_type}
+                language={language}
+                customEntityTypes={customEntityTypes}
+              />
               <button
                 type="button"
                 title={text.restoreSingleTitle}
